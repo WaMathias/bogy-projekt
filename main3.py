@@ -1,9 +1,11 @@
+import os
+
 from mpi4py import MPI
 import random
 import time
 import openpyxl
 import datetime
-import os
+from pathlib import Path
 
 
 def throw_darts(num_darts):
@@ -18,7 +20,7 @@ def estimate_pi(num_darts_per_process, comm):
     if comm.rank == 0:
         total_darts_inside_circle, total_darts_per_process = gather_results(darts_inside_circle, num_darts_per_process,
                                                                             comm)
-        total_darts = total_darts_per_process
+        total_darts = total_darts_per_process * comm.size
         pi_estimate = 4 * total_darts_inside_circle / total_darts
         return pi_estimate, total_darts_per_process
     else:
@@ -56,28 +58,23 @@ def main():
     sheet.title = "Pi Estimation Data"
     sheet.append(["Iteration", "Pi Estimate", "Time Taken (s)", "Num Darts"])
 
-    start_time = time.time()
-    num_iterations = 0
-    num_darts_per_process = 2500
+    for num_darts in [5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000]:
+        num_darts_per_process = num_darts // size
 
-    while time.time() - start_time < 10:
         iteration_start_time = time.time()
         pi_estimate, _ = estimate_pi(num_darts_per_process, comm)
         iteration_end_time = time.time()
+
         time_taken = iteration_end_time - iteration_start_time
 
         if rank == 0:
-            write_to_excel(sheet, num_iterations, pi_estimate, time_taken, num_darts_per_process, size)
-
-        num_iterations += 1
-        num_darts_per_process += 2500
+            write_to_excel(sheet, num_darts, pi_estimate, time_taken, num_darts_per_process, size)
 
     if rank == 0:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"excel/pi_estimation_data_{timestamp}.xlsx"
-        if os.path.exists(filename):
-            os.remove(filename)
-        wb.save(filename)
+        file = "pi_estimation_data.xlsx"
+        if os.path.exists(file):
+            os.remove(file)
+        wb.save(file)
 
 
 if __name__ == "__main__":
