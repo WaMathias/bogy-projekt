@@ -75,6 +75,7 @@ def main():
         if os.path.exists(file):
             os.remove(file)
         wb.save(file)
+        os.system(f"libreoffice --calc ")
 
 
 if __name__ == "__main__":

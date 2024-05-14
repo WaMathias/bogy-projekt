@@ -42,7 +42,5 @@ def main():
           "per process):", pi_estimate, "Took time:", end_time - start_time, "seconds", "on rank: ", rank)
 
 
-
-
 if __name__ == "__main__":
     main()
