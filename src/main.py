@@ -2,15 +2,14 @@ import sys
 import time
 import os
 import logging
-from colorama import init, Fore
+from colorama import init
 from mpi4py import MPI
 
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(project_dir)
 
 from utils.utils import generate_timestamp, logger, check_folder
-from estimation.estimation import estimate_pi_send_receive, estimate_pi_reduce, gather_results, send_results, \
-    throw_darts
+from estimation.estimation import estimate_pi_send_receive, estimate_pi_reduce
 from excel.excel import create_excel_sheet, save_excel, write_to_excel
 from plot.plot import plot_pi_estimate, plot_pi_difference, plot_time_taken
 
@@ -28,7 +27,7 @@ def main(method_sel=None, max_darts=None, dart_step=None, duration=None, debug_m
 
     wb, sheet = create_excel_sheet()
 
-    start_time = time.monotonic()
+    start_time = time.time()
     num_iterations = 0
     num_darts_per_process = dart_step if dart_step else 2500
     data = []
@@ -37,27 +36,27 @@ def main(method_sel=None, max_darts=None, dart_step=None, duration=None, debug_m
         pi_estimate_send_receive = None
         pi_estimate_reduce = None
 
-        method_start_time = time.monotonic()
+        method_start_time = time.time()
 
         if method_sel == "both":
             pi_estimate_send_receive = estimate_pi_send_receive(num_darts_per_process, comm)
-            send_receive_time = time.monotonic() - method_start_time
+            send_receive_time = time.time() - method_start_time
 
-            method_start_time = time.monotonic()
+            method_start_time = time.time()
 
             pi_estimate_reduce = estimate_pi_reduce(num_darts_per_process, comm)
-            reduce_time = time.monotonic() - method_start_time
+            reduce_time = time.time() - method_start_time
         elif method_sel == "send_receive":
             pi_estimate_send_receive = estimate_pi_send_receive(num_darts_per_process, comm)
-            send_receive_time = time.monotonic() - method_start_time
+            send_receive_time = time.time() - method_start_time
         elif method_sel == "reduce":
             pi_estimate_reduce = estimate_pi_reduce(num_darts_per_process, comm)
-            reduce_time = time.monotonic() - method_start_time
+            reduce_time = time.time() - method_start_time
 
-        if pi_estimate_send_receive:
+        if pi_estimate_send_receive is not None:
             data.append([num_iterations, pi_estimate_send_receive, send_receive_time, num_darts_per_process * size,
                          num_darts_per_process, "send_receive"])
-        if pi_estimate_reduce:
+        if pi_estimate_reduce is not None:
             data.append([num_iterations, pi_estimate_reduce, reduce_time, num_darts_per_process * size,
                          num_darts_per_process, "reduce"])
 
@@ -68,7 +67,7 @@ def main(method_sel=None, max_darts=None, dart_step=None, duration=None, debug_m
 
         num_darts_per_process += dart_step if dart_step else 2500
 
-        if duration and time.monotonic() - start_time >= duration:
+        if duration and (time.time() - start_time) >= duration:
             break
 
     if rank == 0:
@@ -77,7 +76,7 @@ def main(method_sel=None, max_darts=None, dart_step=None, duration=None, debug_m
         timestamp = generate_timestamp()
         excel_dir = os.path.join(".", "excel")
         estimation_dir = os.path.join(".", "png", "estimation")
-        difference_dir = os.path.join(".",  "png", "pi_difference")
+        difference_dir = os.path.join(".", "png", "pi_difference")
         runtime_dir = os.path.join(".", "png", "runtime")
 
         os.makedirs(excel_dir, exist_ok=True)
@@ -92,12 +91,15 @@ def main(method_sel=None, max_darts=None, dart_step=None, duration=None, debug_m
 
         try:
             save_excel(wb, filename_excel)
-            logger(f"Excel file saved successfully saved at: {filename_excel}")
-            plot_pi_estimate(data, filename_pi_estimate)
+            logger(f"Excel file saved successfully at: {filename_excel}")
+
+            plot_pi_estimate(data, filename_pi_estimate, method_sel)
             logger(f"Estimation_pi graph successfully saved at: {filename_pi_estimate}")
-            plot_pi_difference(data, filename_pi_difference)
+
+            plot_pi_difference(data, filename_pi_difference, method_sel)
             logger(f"Pi Difference graph successfully saved at: {filename_pi_difference}")
-            plot_time_taken(data, filename_time_taken)
+
+            plot_time_taken(data, filename_time_taken, method_sel)
             logger(f"Runtime graph successfully saved at: {filename_time_taken}")
 
             logger("Excel file and plots saved successfully.")
@@ -113,7 +115,8 @@ if __name__ == "__main__":
     logger("Program has been started")
 
     if len(sys.argv) < 2:
-        logger("FATAL ERROR; wrong usage: python3 main.py [method] [max_darts] [dart_step] [duration] [debug_mode]", level="error")
+        logger("FATAL ERROR; wrong usage: python3 main.py [method] [max_darts] [dart_step] [duration] [debug_mode]",
+               level="error")
         logger("[method] should be 'send_receive', 'reduce', or 'both'", level='error')
         logger("[debug_mode] should be 'True' or 'False'", level="error")
         sys.exit(1)
@@ -123,8 +126,8 @@ if __name__ == "__main__":
     method = sys.argv[1] if len(sys.argv) > 1 else "both"
     max_darts = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else None
     dart_step = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3].isdigit() else 2500
-    duration = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4].isdigit() else 10
-    debug_mode = sys.argv[5].lower() == 'true' if len(sys.argv) > 5 else True
+    duration = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4].isdigit() else 30
+    debug_mode = sys.argv[5].lower() == 'true' if len(sys.argv) > 5 else 'True'
 
     if debug_mode:
         logger(f"Method is going to be used: {method}", level="debug")
@@ -133,14 +136,4 @@ if __name__ == "__main__":
         logger(f"The duration of the program is going to be: {duration} seconds", level="debug")
         logger(f"Debug Mode is {debug_mode}", level="debug")
 
-        if len(sys.argv) < 2:
-            logger("FATAL ERROR; wrong usage: python3 main.py [method] [max_darts] [dart_step] [duration] [debug_mode]",
-                   level="error")
-            logger("[method] should be 'send_receive', 'reduce', or 'both'", level='error')
-            logger("[debug_mode] should be 'True' or 'False'", level="error")
-            sys.exit(1)
-
-    print(sys.argv)
-
     main(method, max_darts, dart_step, duration, debug_mode)
-

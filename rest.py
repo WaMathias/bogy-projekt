@@ -28,6 +28,7 @@ def throw_darts(num_darts):
         1 for _ in range(num_darts) if random.uniform(-1, 1) ** 2 + random.uniform(-1, 1) ** 2 <= 1)
     return darts_inside_circle
 
+
 def check_folder():
     excel_folder = "././excel"
     png_folder = "././png"

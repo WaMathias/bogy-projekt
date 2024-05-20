@@ -28,3 +28,6 @@ export DEBUG_MODE=$debug_mode
 
 echo "The following command is going to be executed: mpirun -n $slots --hostfile hostfile --map-by :OVERSUBSCRIBE python3 ./src/main.py $method $max_darts $dart_step $duration"
 mpirun -n $slots --hostfile hostfile --map-by :OVERSUBSCRIBE python3 ./src/main.py $method $max_darts $dart_step $duration
+
+
+
