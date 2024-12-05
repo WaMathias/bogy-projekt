@@ -15,3 +15,6 @@ src/
 │   ├── __init__.py
 │   ├── excel.py
 <pre>
+
+
+Maybe include somo MPI in other projects, which could be pretty interestening
